@@ -30,10 +30,12 @@
 #define LUA_TDEADKEY	(LAST_TAG+3)
 
 
+
 /*
 ** Union of all collectable objects
 */
 typedef union GCObject GCObject;
+
 
 
 /*
@@ -41,6 +43,7 @@ typedef union GCObject GCObject;
 ** included in other objects)
 */
 #define CommonHeader	GCObject *next; lu_byte tt; lu_byte marked
+
 
 
 /*
@@ -52,16 +55,16 @@ typedef struct GCheader {
 
 
 
-
 /*
 ** Union of all Lua values
 */
 typedef union {
   GCObject *gc;
   void *p;
-  lua_Number n;
+  lua_Number n;             //double
   int b;
 } Value;
+
 
 
 /*
@@ -70,9 +73,12 @@ typedef union {
 
 #define TValuefields	Value value; int tt
 
+
+
 typedef struct lua_TValue {
   TValuefields;
 } TValue;
+
 
 
 /* Macros to test type */
@@ -185,12 +191,15 @@ typedef struct lua_TValue {
 
 #define setttype(obj, tt) (ttype(obj) = (tt))
 
+
+
 // 只有这些类型的数据 才是可回收的数据
 #define iscollectable(o)	(ttype(o) >= LUA_TSTRING)
 
 
 
 typedef TValue *StkId;  /* index to stack elements */
+
 
 
 /*
@@ -205,6 +214,7 @@ typedef union TString {
     size_t len;
   } tsv;
 } TString;
+
 
 
 #define getstr(ts)	cast(const char *, (ts) + 1)

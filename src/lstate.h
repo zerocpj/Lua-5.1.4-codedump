@@ -137,6 +137,7 @@ struct lua_State {
 #define G(L)	(L->l_G)
 
 
+
 /*
 ** Union of all collectable objects
 */
@@ -150,6 +151,7 @@ union GCObject {
   struct UpVal uv;
   struct lua_State th;  /* thread */
 };
+
 
 
 /* macros to convert a GCObject into a specific value */

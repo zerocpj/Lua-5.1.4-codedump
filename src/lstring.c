@@ -18,6 +18,7 @@
 #include "lstring.h"
 
 
+
 // 对保存string的hash桶进行resize
 void luaS_resize (lua_State *L, int newsize) {
   GCObject **newhash;
@@ -45,7 +46,10 @@ void luaS_resize (lua_State *L, int newsize) {
   luaM_freearray(L, tb->hash, tb->size, TString *);
   tb->size = newsize;
   tb->hash = newhash;
+
+  //tb->nuse不需要更新
 }
+
 
 
 static TString *newlstr (lua_State *L, const char *str, size_t l,
@@ -61,6 +65,8 @@ static TString *newlstr (lua_State *L, const char *str, size_t l,
   ts->tsv.tt = LUA_TSTRING;
   ts->tsv.reserved = 0;
   memcpy(ts+1, str, l*sizeof(char));
+
+  //ts+1会跳过TString类型的大小
   ((char *)(ts+1))[l] = '\0';  /* ending 0 */
   tb = &G(L)->strt;
   h = lmod(h, tb->size);
@@ -75,6 +81,7 @@ static TString *newlstr (lua_State *L, const char *str, size_t l,
 }
 
 
+
 TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
   GCObject *o;
   unsigned int h = cast(unsigned int, l);  /* seed */
@@ -86,7 +93,7 @@ TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
        o != NULL;
        o = o->gch.next) {
     TString *ts = rawgco2ts(o);
-    if (ts->tsv.len == l && (memcmp(str, getstr(ts), l) == 0)) {
+    if (ts->tsv.len == l && (memcmp(str, getstr(ts), l) == 0)) {                    //#define getstr(ts)  cast(const char *, (ts) + 1)
       /* string may be dead */
       if (isdead(G(L), o)) changewhite(o);
       return ts;
@@ -94,6 +101,7 @@ TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
   }
   return newlstr(L, str, l, h);  /* not found */
 }
+
 
 
 Udata *luaS_newudata (lua_State *L, size_t s, Table *e) {

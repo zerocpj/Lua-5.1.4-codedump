@@ -585,6 +585,7 @@ union luai_Cast { double l_d; long l_l; };
 /* }================================================================== */
 
 
+
 /*
 @@ LUAI_USER_ALIGNMENT_T is a type that requires maximum alignment.
 ** CHANGE it if your system requires alignments larger than double. (For
@@ -593,6 +594,7 @@ union luai_Cast { double l_d; long l_l; };
 ** union.) Probably you do not need to change this.
 */
 #define LUAI_USER_ALIGNMENT_T	union { double u; void *s; long l; }
+
 
 
 /*

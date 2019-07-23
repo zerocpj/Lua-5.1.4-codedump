@@ -487,6 +487,7 @@ static GCObject **sweeplist (lua_State *L, GCObject **p, lu_mem count) {
 }
 
 
+
 static void checkSizes (lua_State *L) {
   global_State *g = G(L);
   /* check size of string hash */
@@ -501,6 +502,8 @@ static void checkSizes (lua_State *L) {
     luaZ_resizebuffer(L, &g->buff, newsize);
   }
 }
+
+
 
 // 对有GC方法的udata进行回收,也就是调用其注册的GC函数
 static void GCTM (lua_State *L) {

@@ -62,16 +62,18 @@ static void save (LexState *ls, int c) {
 }
 
 
+
 void luaX_init (lua_State *L) {
   int i;
   // 初始化lua关键字字符串,注意到并不保存它们,只是在StringTable中保存下来并且标记为不可回收
-  for (i=0; i<NUM_RESERVED; i++) {
+  for (i=0; i<NUM_RESERVED; i++) {                                  //#define NUM_RESERVED    (cast(int, TK_WHILE-FIRST_RESERVED+1))
     TString *ts = luaS_new(L, luaX_tokens[i]);
     luaS_fix(ts);  /* reserved words are never collected */
     lua_assert(strlen(luaX_tokens[i])+1 <= TOKEN_LEN);
     ts->tsv.reserved = cast_byte(i+1);  /* reserved word */
   }
 }
+
 
 
 #define MAXSRC          80
