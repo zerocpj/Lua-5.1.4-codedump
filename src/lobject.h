@@ -332,6 +332,7 @@ typedef union Closure {
 #define isLfunction(o)	(ttype(o) == LUA_TFUNCTION && !clvalue(o)->c.isC)
 
 
+
 /*
 ** Tables
 */
@@ -344,11 +345,14 @@ typedef union TKey {
   TValue tvk;
 } TKey;
 
+
+
 // 每个节点都有key和val
 typedef struct Node {
   TValue i_val;
   TKey i_key;
 } Node;
+
 
 
 typedef struct Table {

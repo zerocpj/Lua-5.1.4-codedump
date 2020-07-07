@@ -53,6 +53,7 @@
 #define hashboolean(t,p)        hashpow2(t, p)
 
 
+
 /*
 ** for some types, it is better to avoid modulus by power of 2, as
 ** they tend to have many 2 factors.
@@ -61,7 +62,9 @@
 #define hashmod(t,n)	(gnode(t, ((n) % ((sizenode(t)-1)|1))))
 
 
+
 #define hashpointer(t,p)	hashmod(t, IntPoint(p))
+
 
 
 /*
@@ -77,6 +80,7 @@ static const Node dummynode_ = {
   {{NULL}, LUA_TNIL},  /* value */
   {{{NULL}, LUA_TNIL, NULL}}  /* key */
 };
+
 
 
 /*
@@ -116,6 +120,7 @@ static Node *mainposition (const Table *t, const TValue *key) {
 }
 
 
+
 /*
 ** returns the index for `key' if `key' is an appropriate key to live in
 ** the array part of the table, -1 otherwise.
@@ -131,6 +136,7 @@ static int arrayindex (const TValue *key) {
   }
   return -1;  /* `key' did not match some condition */
 }
+
 
 
 /*
@@ -196,6 +202,7 @@ int luaH_next (lua_State *L, Table *t, StkId key) {
 }
 
 
+
 /*
 ** {=============================================================
 ** Rehash
@@ -230,6 +237,8 @@ static int computesizes (int nums[], int *narray) {
   return na;
 }
 
+
+
 // 传入nums数组, 计算key是不是在2^(i-1) and 2^i范围内,如果是将nums相应的部分加一
 // 返回0/1的依据是它是否落在合适的数组范围内
 static int countint (const TValue *key, int *nums) {
@@ -242,6 +251,8 @@ static int countint (const TValue *key, int *nums) {
   else
     return 0;
 }
+
+
 
 // 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i
 static int numusearray (const Table *t, int *nums) {
@@ -268,6 +279,8 @@ static int numusearray (const Table *t, int *nums) {
   return ause;
 }
 
+
+
 // 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i
 // 同时计算在hash中的整数数量,将数值更新到数组大小中
 static int numusehash (const Table *t, int *nums, int *pnasize) {
@@ -285,6 +298,8 @@ static int numusehash (const Table *t, int *nums, int *pnasize) {
   return totaluse;
 }
 
+
+
 // 初始化table的数组部分
 static void setarrayvector (lua_State *L, Table *t, int size) {
   int i;
@@ -294,6 +309,8 @@ static void setarrayvector (lua_State *L, Table *t, int size) {
      setnilvalue(&t->array[i]);
   t->sizearray = size;
 }
+
+
 
 // 初始化table的hash数组部分
 static void setnodevector (lua_State *L, Table *t, int size) {
@@ -327,6 +344,8 @@ static void setnodevector (lua_State *L, Table *t, int size) {
   t->lsizenode = cast_byte(lsize);
   t->lastfree = gnode(t, size);  /* all positions are free */
 }
+
+
 
 // 重新分配table的数组和hash部分的大小
 static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
@@ -367,11 +386,15 @@ static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
     luaM_freearray(L, nold, twoto(oldhsize), Node);  /* free old array */
 }
 
+
+
 // 数组部分重新分配
 void luaH_resizearray (lua_State *L, Table *t, int nasize) {
   int nsize = (t->node == dummynode) ? 0 : sizenode(t);
   resize(L, t, nasize, nsize);
 }
+
+
 
 // 对table进行重新划分hash和数组部分的大小
 static void rehash (lua_State *L, Table *t, const TValue *ek) {
@@ -379,6 +402,8 @@ static void rehash (lua_State *L, Table *t, const TValue *ek) {
   // nums中存放的是key在2^(i-1), 2^i之间的元素数量
   int nums[MAXBITS+1];  /* nums[i] = number of keys between 2^(i-1) and 2^i */
   int i;
+  
+  //totaluse是所有key的数量，nasize是key为数字的数量
   int totaluse;
   // 首先清空nums数组
   for (i=0; i<=MAXBITS; i++) nums[i] = 0;  /* reset counts */
@@ -429,6 +454,8 @@ void luaH_free (lua_State *L, Table *t) {
   luaM_free(L, t);
 }
 
+
+
 // 在hash中寻找一个可用位置
 static Node *getfreepos (Table *t) {
   while (t->lastfree-- > t->node) {
@@ -451,17 +478,25 @@ static Node *getfreepos (Table *t) {
 static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
   // 根据key寻找在hash中的位置
   Node *mp = mainposition(t, key);
+
   // 如果该位置上已经有数据了(!ttisnil(gval(mp)), 或者找不到位置(mp == dummynode)
   if (!ttisnil(gval(mp)) || mp == dummynode) {
     Node *othern;
     // 尝试着获取一个空闲位置
+    //直接用node数组，不额外申请空间
     Node *n = getfreepos(t);  /* get a free place */
+
     // 找不到空闲位置?
     if (n == NULL) {  /* cannot find a free place? */
       rehash(L, t, key);  /* grow table */
       return luaH_set(L, t, key);  /* re-insert key into grown table */
     }
+
     lua_assert(n != dummynode);
+    
+    //自己的位置被其他key占领了，把自己位置的其他key移到n那里，然后占回自己的位置
+
+    //找占领自己位置的其他key的起始位置，一直往下找，找到mp
     othern = mainposition(t, key2tval(mp));
     if (othern != mp) {  /* is colliding node out of its main position? */
       /* yes; move colliding node into free position */
@@ -471,6 +506,7 @@ static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
       gnext(mp) = NULL;  /* now `mp' is free */
       setnilvalue(gval(mp));
     }
+    //位置被占领了，但是是相同key
     else {  /* colliding node is in its own main position */
       /* new node will go into free position */
       gnext(n) = gnext(mp);  /* chain new position */
@@ -478,11 +514,13 @@ static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
       mp = n;
     }
   }
+
   gkey(mp)->value = key->value; gkey(mp)->tt = key->tt;
   luaC_barriert(L, t, key);
   lua_assert(ttisnil(gval(mp)));
   return gval(mp);
 }
+
 
 
 /*
@@ -506,6 +544,7 @@ const TValue *luaH_getnum (Table *t, int key) {
     return luaO_nilobject;
   }
 }
+
 
 
 /*
@@ -552,6 +591,8 @@ const TValue *luaH_get (Table *t, const TValue *key) {
   }
 }
 
+
+
 // 除了数字之外的key的set操作
 TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
   const TValue *p = luaH_get(t, key);
@@ -568,6 +609,8 @@ TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
   }
 }
 
+
+
 // 以数字为key的set操作
 TValue *luaH_setnum (lua_State *L, Table *t, int key) {
   const TValue *p = luaH_getnum(t, key);
@@ -581,6 +624,8 @@ TValue *luaH_setnum (lua_State *L, Table *t, int key) {
     return newkey(L, t, &k);
   }
 }
+
+
 
 // 以字符串为key的set操作
 TValue *luaH_setstr (lua_State *L, Table *t, TString *key) {
