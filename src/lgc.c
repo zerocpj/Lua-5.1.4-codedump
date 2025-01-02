@@ -808,6 +808,7 @@ void luaC_link (lua_State *L, GCObject *o, lu_byte tt) {
 }
 
 // 这里需要问一下:upval和一般的对象有什么区别?为什么要单独一个函数来处理?
+// upvalue 在 C 中类型为 UpVal ，也是一个 GCObject 。但这里被特殊处理。为什么会这样？因为 Lua 的 GC 可以分步扫描。别的类型被新创建时，都可以直接作为一个白色节点（新节点）挂接在整个系统中。但 upvalue 却是对已有的对象的间接引用，不是新数据。一旦 GC 在 mark 的过程中（ gc 状态为 GCSpropagate ），则需增加屏障 luaC_barrier 。对于这个问题，会在以后详细展开。
 void luaC_linkupval (lua_State *L, UpVal *uv) {
   global_State *g = G(L);
   GCObject *o = obj2gco(uv);

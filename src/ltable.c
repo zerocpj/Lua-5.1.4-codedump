@@ -47,8 +47,9 @@
 #define MAXASIZE	(1 << MAXBITS)
 
 
+//% node的大小
 #define hashpow2(t,n)      (gnode(t, lmod((n), sizenode(t))))
-  
+//string的hash % node的大小
 #define hashstr(t,str)  hashpow2(t, (str)->tsv.hash)
 #define hashboolean(t,p)        hashpow2(t, p)
 
@@ -70,6 +71,7 @@
 /*
 ** number of ints inside a lua_Number
 */
+//lua_Number所占字节 等于 多少个int所占字节
 #define numints		cast_int(sizeof(lua_Number)/sizeof(int))
 
 
@@ -82,7 +84,7 @@ static const Node dummynode_ = {
 };
 
 
-
+//不同字节上的值加起来，然后 % ((sizenode(t)-1)|1)
 /*
 ** hash for lua_Numbers
 */
@@ -98,7 +100,8 @@ static Node *hashnum (const Table *t, lua_Number n) {
 }
 
 
-
+//num,pointer: % ((sizenode(t)-1)|1)
+//str,boolean: % node的大小
 /*
 ** returns the `main' position of an element in a table (that is, the index
 ** of its hash value)
@@ -160,7 +163,7 @@ static int findindex (lua_State *L, Table *t, StkId key) {
     do {  /* check whether `key' is somewhere in the chain */
       /* key may be dead already, but it is ok to use it in `next' */
       if (luaO_rawequalObj(key2tval(n), key) ||
-            (ttype(gkey(n)) == LUA_TDEADKEY && iscollectable(key) &&
+            (ttype(gkey(n)) == LUA_TDEADKEY && iscollectable(key) &&                  //TODO 这里为啥用gkey来判断，有点不是很理解
              gcvalue(gkey(n)) == gcvalue(key))) {
     	// 需要算出在hash部分中的偏移位置
         i = cast_int(n - gnode(t, 0));  /* key index in hash table */
@@ -183,7 +186,7 @@ int luaH_next (lua_State *L, Table *t, StkId key) {
     if (!ttisnil(&t->array[i])) {  /* a non-nil value? */
       // i + 1存入key中
       setnvalue(key, cast_num(i+1));
-      // 将i的值复制到key + 1中(也就是i + 2)
+      // value放到key后面
       setobj2s(L, key+1, &t->array[i]);
       return 1;
     }
@@ -214,7 +217,9 @@ static int computesizes (int nums[], int *narray) {
   int i;
   int twotoi;  /* 2^i */
   int a = 0;  /* number of elements smaller than 2^i */
+  //有多少个元素要放到数组部分
   int na = 0;  /* number of elements to go to array part */
+  //数组最终的大小
   int n = 0;  /* optimal size for array part */
 
   // 这个循环完毕后,最重要的na存放的是数组部分的数据数量,而n是
@@ -254,7 +259,7 @@ static int countint (const TValue *key, int *nums) {
 
 
 
-// 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i
+// 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i, 即(2^(i-1), 2^i]
 static int numusearray (const Table *t, int *nums) {
   int lg;
   int ttlg;  /* 2^lg */
@@ -281,7 +286,7 @@ static int numusearray (const Table *t, int *nums) {
 
 
 
-// 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i
+// 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i, 即(2^(i-1), 2^i]
 // 同时计算在hash中的整数数量,将数值更新到数组大小中
 static int numusehash (const Table *t, int *nums, int *pnasize) {
   int totaluse = 0;  /* total number of elements */
@@ -366,7 +371,7 @@ static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
     for (i=nasize; i<oldasize; i++) {
       // 如果多出来的部分元素不为nil
       if (!ttisnil(&t->array[i]))
-    	// 以i + 1为key, 将i的数据插入hash部分
+    	// 以i + 1为key, 将i的数据插入hash部分（肯定不会是array中）
         setobjt2t(L, luaH_setnum(L, t, i+1), &t->array[i]);
     }
     /* shrink array */
@@ -377,7 +382,7 @@ static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
   // 为什么从后往前遍历插入呢?
   for (i = twoto(oldhsize) - 1; i >= 0; i--) {
     Node *old = nold+i;
-    // 将原来不为nil的元素重新插入hash中
+    // 将原来不为nil的元素重新插入hash or array中
     if (!ttisnil(gval(old)))
       setobjt2t(L, luaH_set(L, t, key2tval(old)), gval(old));
   }
@@ -400,6 +405,9 @@ void luaH_resizearray (lua_State *L, Table *t, int nasize) {
 static void rehash (lua_State *L, Table *t, const TValue *ek) {
   int nasize, na;
   // nums中存放的是key在2^(i-1), 2^i之间的元素数量
+  // 0  (2^-1, 2^0]     (1/2, 1]
+  // 1  (2^0, 2^1]      (1, 2]
+  // 2  (2^1, 2^2]      (2, 4]
   int nums[MAXBITS+1];  /* nums[i] = number of keys between 2^(i-1) and 2^i */
   int i;
   
@@ -421,7 +429,7 @@ static void rehash (lua_State *L, Table *t, const TValue *ek) {
   na = computesizes(nums, &nasize);
   // 重新分配table中数组和hash的大小
   /* resize the table to new computed sizes */
-  resize(L, t, nasize, totaluse - na);
+  resize(L, t, nasize, totaluse - na);  //nasize数组的大小 na是放到数组部分的key有多少个
 }
 
 
@@ -479,11 +487,10 @@ static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
   // 根据key寻找在hash中的位置
   Node *mp = mainposition(t, key);
 
-  // 如果该位置上已经有数据了(!ttisnil(gval(mp)), 或者找不到位置(mp == dummynode)
+  // 如果该位置上已经有数据了(!ttisnil(gval(mp)), 或者找不到位置(mp == dummynode), 即hashtable大小为0的时候
   if (!ttisnil(gval(mp)) || mp == dummynode) {
     Node *othern;
     // 尝试着获取一个空闲位置
-    //直接用node数组，不额外申请空间
     Node *n = getfreepos(t);  /* get a free place */
 
     // 找不到空闲位置?
@@ -494,10 +501,8 @@ static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
 
     lua_assert(n != dummynode);
     
-    //自己的位置被其他key占领了，把自己位置的其他key移到n那里，然后占回自己的位置
-
-    //找占领自己位置的其他key的起始位置，一直往下找，找到mp
     othern = mainposition(t, key2tval(mp));
+    // 位置被占领了，并且不是相同的hash_value
     if (othern != mp) {  /* is colliding node out of its main position? */
       /* yes; move colliding node into free position */
       while (gnext(othern) != mp) othern = gnext(othern);  /* find previous */
@@ -506,7 +511,7 @@ static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
       gnext(mp) = NULL;  /* now `mp' is free */
       setnilvalue(gval(mp));
     }
-    //位置被占领了，但是是相同key
+    // 位置被占领了，但是是相同的hash_value
     else {  /* colliding node is in its own main position */
       /* new node will go into free position */
       gnext(n) = gnext(mp);  /* chain new position */
@@ -552,6 +557,7 @@ const TValue *luaH_getnum (Table *t, int key) {
 */
 // 以字符串为key的查找函数
 const TValue *luaH_getstr (Table *t, TString *key) {
+  //hash值 % node的大小
   Node *n = hashstr(t, key);
   do {  /* check whether `key' is somewhere in the chain */
     if (ttisstring(gkey(n)) && rawtsvalue(gkey(n)) == key)
@@ -664,6 +670,7 @@ static int unbound_search (Table *t, unsigned int j) {
 }
 
 
+// a = {1, 2, nil, 3, 4, nil, 5, nil}; print(table.getn(a)); --输出5
 /*
 ** Try to find a boundary in table `t'. A `boundary' is an integer index
 ** such that t[i] is non-nil and t[i+1] is nil (and 0 if t[1] is nil).

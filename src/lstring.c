@@ -73,7 +73,7 @@ static TString *newlstr (lua_State *L, const char *str, size_t l,
   ts->tsv.next = tb->hash[h];  /* chain new entry */
   tb->hash[h] = obj2gco(ts);
   tb->nuse++;
-  // 在hash桶数组大小小于MAX_INT/2的情况下，
+  // 在hash桶数组大小小于等于MAX_INT/2的情况下，
   // 只要字符串数量大于桶数组数量就开始成倍的扩充桶的容量
   if (tb->nuse > cast(lu_int32, tb->size) && tb->size <= MAX_INT/2)
     luaS_resize(L, tb->size*2);  /* too crowded */

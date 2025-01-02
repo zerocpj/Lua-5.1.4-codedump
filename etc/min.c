@@ -9,6 +9,8 @@
 #include "lua.h"
 #include "lauxlib.h"
 
+
+
 static int print(lua_State *L)
 {
  int n=lua_gettop(L);
@@ -29,8 +31,11 @@ static int print(lua_State *L)
  return 0;
 }
 
+
+
 int main(void)
 {
+ //lua_State *L = luaL_newstate();
  lua_State *L=lua_open();
  lua_register(L,"print",print);
  if (luaL_dofile(L,NULL)!=0) fprintf(stderr,"%s\n",lua_tostring(L,-1));

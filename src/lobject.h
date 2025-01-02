@@ -31,12 +31,12 @@
 
 
 
+
+//--
 /*
 ** Union of all collectable objects
 */
 typedef union GCObject GCObject;
-
-
 
 /*
 ** Common Header for all collectable objects (in macro form, to be
@@ -44,16 +44,12 @@ typedef union GCObject GCObject;
 */
 #define CommonHeader	GCObject *next; lu_byte tt; lu_byte marked
 
-
-
 /*
 ** Common header in struct form
 */
 typedef struct GCheader {
   CommonHeader;
 } GCheader;
-
-
 
 /*
 ** Union of all Lua values
@@ -65,19 +61,16 @@ typedef union {
   int b;
 } Value;
 
-
-
 /*
 ** Tagged Values
 */
 
 #define TValuefields	Value value; int tt
 
-
-
 typedef struct lua_TValue {
   TValuefields;
 } TValue;
+
 
 
 
@@ -206,6 +199,7 @@ typedef TValue *StkId;  /* index to stack elements */
 ** String headers for string table
 */
 typedef union TString {
+  //这是一个用于对齐的占位成员，它确保了TString结构体在内存中的起始地址满足平台所需的最大对齐要求，以保证数据访问的安全和效率
   L_Umaxalign dummy;  /* ensures maximum alignment for strings */
   struct {
     CommonHeader;
@@ -357,7 +351,9 @@ typedef struct Node {
 
 typedef struct Table {
   CommonHeader;
+  //表示这个表中提供了哪些元方法，每个元方法有对应的bit，ltm.h
   lu_byte flags;  /* 1<<p means tagmethod(p) is not present */ 
+  //散列表的大小log2
   lu_byte lsizenode;  /* log2 of size of `node' array */
   struct Table *metatable;
   TValue *array;  /* array part */
