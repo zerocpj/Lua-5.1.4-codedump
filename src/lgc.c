@@ -675,6 +675,9 @@ static l_mem singlestep (lua_State *L) {
       g->estimate -= old - g->totalbytes;
       // 我猜想这里返回一个固定的值，而不是按照实际回收的大小返回
       // 是因为前面扫描阶段已经返回实际的值了？
+
+      //在标记阶段，需要准确地跟踪内存的变化量，因此返回实际的内存增长量，以便调整垃圾回收的阈值和速度
+      //在清扫阶段，为了保持垃圾回收器步调的平滑性，避免一次性释放大量内存导致的不均衡，故返回固定的成本值
       return GCSWEEPMAX*GCSWEEPCOST;
     }
     case GCSfinalize: {
@@ -747,12 +750,26 @@ void luaC_fullgc (lua_State *L) {
     g->gray = NULL;
     g->grayagain = NULL;
     g->weak = NULL;
+    //在没有完成标记的情况下，直接进入清扫阶段，不会误回收当前周期未标记的白色对象
+    //因为清扫阶段只回收 otherwhite 的对象，而未标记的对象仍然是 currentwhite，并不符合回收条件
+    //这里没有反转白色，就是atomic里面执行的那一步
+    //由于没有翻转白色位，otherwhite 仍然表示上一周期的白色
+
+    /*
+    一、假设初始阶段currwhite是 10，otherwhite是01
+    二、atomic函数，将currwhite和otherwhite进行切换，currwhite变成01，otherwhite变成10
+    三、这时候开始，标记已经完成结束，新创建的对象，都是01
+    四、sweeplist里面，回收的时候，将10进行回收，不会将01误回收
+    五、新的一轮，初始阶段currwhite是01，otherwhite 是10，所有对象，都会重新进行标记，包括标记结束之前新创建的对象
+    六、新的一轮，atomic函数，将currwhite和otherwhite进行切换，currwhite变成10，otherwhite变成01
+    七、新的一轮，这时候开始，标记已经完成结束，新创建的对象，都是10
+    八、新的一轮，sweeplist里面，回收的时候，将01进行回收，不会将10误回收
+    */
+    //这里没有反转白色，相当于还是回收刚刚回收的内容，就好比只有四，五，八，因为没有六，所以八还是回收10，也即四回收的内容
     g->gcstate = GCSsweepstring;
   }
   lua_assert(g->gcstate != GCSpause && g->gcstate != GCSpropagate);
   /* finish any pending sweep phase */
-  // 这里仅执行sweep和sweepstring两个过程，因为前面没有改变白色，
-  // 所以这里只是将所有对象重新mark成白色
   while (g->gcstate != GCSfinalize) {
     lua_assert(g->gcstate == GCSsweepstring || g->gcstate == GCSsweep);
     singlestep(L);

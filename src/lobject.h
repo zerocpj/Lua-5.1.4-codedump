@@ -195,6 +195,7 @@ typedef TValue *StkId;  /* index to stack elements */
 
 
 
+//--
 /*
 ** String headers for string table
 */
@@ -330,7 +331,6 @@ typedef union Closure {
 /*
 ** Tables
 */
-
 typedef union TKey {
   struct {
     TValuefields;
@@ -339,15 +339,11 @@ typedef union TKey {
   TValue tvk;
 } TKey;
 
-
-
 // 每个节点都有key和val
 typedef struct Node {
   TValue i_val;
   TKey i_key;
 } Node;
-
-
 
 typedef struct Table {
   CommonHeader;

@@ -47,14 +47,21 @@
 #define MAXASIZE	(1 << MAXBITS)
 
 
+
+//--
 //% node的大小
 #define hashpow2(t,n)      (gnode(t, lmod((n), sizenode(t))))
 //string的hash % node的大小
 #define hashstr(t,str)  hashpow2(t, (str)->tsv.hash)
+
+
+
+//--
 #define hashboolean(t,p)        hashpow2(t, p)
 
 
 
+//--
 /*
 ** for some types, it is better to avoid modulus by power of 2, as
 ** they tend to have many 2 factors.
@@ -64,10 +71,12 @@
 
 
 
+//--
 #define hashpointer(t,p)	hashmod(t, IntPoint(p))
 
 
 
+//--
 /*
 ** number of ints inside a lua_Number
 */
@@ -84,6 +93,8 @@ static const Node dummynode_ = {
 };
 
 
+
+//--
 //不同字节上的值加起来，然后 % ((sizenode(t)-1)|1)
 /*
 ** hash for lua_Numbers
@@ -92,6 +103,9 @@ static const Node dummynode_ = {
 static Node *hashnum (const Table *t, lua_Number n) {
   unsigned int a[numints];
   int i;
+  //为什么要特殊处理零值？
+  //在 IEEE 754 浮点数标准中，+0 和 -0 是不同的值，但在 Lua 中，这两者应被视为相等的键。
+  //为了避免由于 -0 和 +0 的二进制表示不同而导致的哈希冲突，直接将所有的零值映射到哈希表的第一个位置（索引为 0 ）。
   if (luai_numeq(n, 0))  /* avoid problems with -0 */
     return gnode(t, 0);
   memcpy(a, &n, sizeof(a));
@@ -100,6 +114,8 @@ static Node *hashnum (const Table *t, lua_Number n) {
 }
 
 
+
+//--
 //num,pointer: % ((sizenode(t)-1)|1)
 //str,boolean: % node的大小
 /*
@@ -124,6 +140,7 @@ static Node *mainposition (const Table *t, const TValue *key) {
 
 
 
+//--
 /*
 ** returns the index for `key' if `key' is an appropriate key to live in
 ** the array part of the table, -1 otherwise.
@@ -179,6 +196,8 @@ static int findindex (lua_State *L, Table *t, StkId key) {
   }
 }
 
+
+
 // 根据key寻找下一个不为nil的元素, 找到返回1,
 int luaH_next (lua_State *L, Table *t, StkId key) {
   int i = findindex(L, t, key);  /* find original element */
@@ -206,12 +225,17 @@ int luaH_next (lua_State *L, Table *t, StkId key) {
 
 
 
+
+
+
+
 /*
 ** {=============================================================
 ** Rehash
 ** ==============================================================
 */
 
+//--
 // 只有利用率超过50%的数组元素会进入数组,否则进去hash
 static int computesizes (int nums[], int *narray) {
   int i;
@@ -242,8 +266,7 @@ static int computesizes (int nums[], int *narray) {
   return na;
 }
 
-
-
+//--
 // 传入nums数组, 计算key是不是在2^(i-1) and 2^i范围内,如果是将nums相应的部分加一
 // 返回0/1的依据是它是否落在合适的数组范围内
 static int countint (const TValue *key, int *nums) {
@@ -257,8 +280,7 @@ static int countint (const TValue *key, int *nums) {
     return 0;
 }
 
-
-
+//--
 // 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i, 即(2^(i-1), 2^i]
 static int numusearray (const Table *t, int *nums) {
   int lg;
@@ -284,8 +306,7 @@ static int numusearray (const Table *t, int *nums) {
   return ause;
 }
 
-
-
+//--
 // 传入nums数组, 它的意义是:nums[i] = number of keys between 2^(i-1) and 2^i, 即(2^(i-1), 2^i]
 // 同时计算在hash中的整数数量,将数值更新到数组大小中
 static int numusehash (const Table *t, int *nums, int *pnasize) {
@@ -303,20 +324,19 @@ static int numusehash (const Table *t, int *nums, int *pnasize) {
   return totaluse;
 }
 
-
-
+//--
 // 初始化table的数组部分
 static void setarrayvector (lua_State *L, Table *t, int size) {
   int i;
   // 为什么这里用的是luaM_reallocvector,而后面的setnodevector中使用的是luaM_newvector
+  // 数组这里底层接口是realloc，会保留已有数据，返回最新的地址
   luaM_reallocvector(L, t->array, t->sizearray, size, TValue);
   for (i=t->sizearray; i<size; i++)
      setnilvalue(&t->array[i]);
   t->sizearray = size;
 }
 
-
-
+//--
 // 初始化table的hash数组部分
 static void setnodevector (lua_State *L, Table *t, int size) {
   int lsize;
@@ -350,8 +370,7 @@ static void setnodevector (lua_State *L, Table *t, int size) {
   t->lastfree = gnode(t, size);  /* all positions are free */
 }
 
-
-
+//--
 // 重新分配table的数组和hash部分的大小
 static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
   int i;
@@ -391,16 +410,13 @@ static void resize (lua_State *L, Table *t, int nasize, int nhsize) {
     luaM_freearray(L, nold, twoto(oldhsize), Node);  /* free old array */
 }
 
-
-
 // 数组部分重新分配
 void luaH_resizearray (lua_State *L, Table *t, int nasize) {
   int nsize = (t->node == dummynode) ? 0 : sizenode(t);
   resize(L, t, nasize, nsize);
 }
 
-
-
+//--
 // 对table进行重新划分hash和数组部分的大小
 static void rehash (lua_State *L, Table *t, const TValue *ek) {
   int nasize, na;
@@ -415,32 +431,45 @@ static void rehash (lua_State *L, Table *t, const TValue *ek) {
   int totaluse;
   // 首先清空nums数组
   for (i=0; i<=MAXBITS; i++) nums[i] = 0;  /* reset counts */
+
   // 计算数组部分在每个范围中数据的数量,返回的nasize是数组部分数据的数量
   nasize = numusearray(t, nums);  /* count keys in array part */
   totaluse = nasize;  /* all those keys are integer keys */
+
   // 计算hash中key的数量
   totaluse += numusehash(t, nums, &nasize);  /* count keys in hash part */
+
   /* count extra key */
   // 判断新key的范围
   nasize += countint(ek, nums);
   totaluse++;
+
   /* compute new size for array part */
   // 计算新的数组部分的大小
+  // 这里传入nasize的时候，还是整数的数量
   na = computesizes(nums, &nasize);
+
+  // 出来之后，nasize变成是数组的大小，na是有多少个整数放到了数组部分
   // 重新分配table中数组和hash的大小
   /* resize the table to new computed sizes */
   resize(L, t, nasize, totaluse - na);  //nasize数组的大小 na是放到数组部分的key有多少个
 }
 
-
-
 /*
 ** }=============================================================
 */
 
+
+
+
+
+
+
+//--
 // 新分配table
 Table *luaH_new (lua_State *L, int narray, int nhash) {
   Table *t = luaM_new(L, Table);
+  //为啥字符串不需要调这个函数，因为字符串本身就在全局字符串表里面，能够找到所有字符串
   luaC_link(L, obj2gco(t), LUA_TTABLE);
   t->metatable = NULL;
   t->flags = cast_byte(~0);
@@ -454,6 +483,8 @@ Table *luaH_new (lua_State *L, int narray, int nhash) {
   return t;
 }
 
+
+
 // 释放table
 void luaH_free (lua_State *L, Table *t) {
   if (t->node != dummynode)
@@ -464,6 +495,7 @@ void luaH_free (lua_State *L, Table *t) {
 
 
 
+//--
 // 在hash中寻找一个可用位置
 static Node *getfreepos (Table *t) {
   while (t->lastfree-- > t->node) {
@@ -475,6 +507,7 @@ static Node *getfreepos (Table *t) {
 
 
 
+//--
 /*
 ** inserts a new key into a hash table; first, check whether key's main 
 ** position is free. If not, check whether colliding node is in its main 
@@ -528,10 +561,11 @@ static TValue *newkey (lua_State *L, Table *t, const TValue *key) {
 
 
 
+//--
 /*
 ** search function for integers
 */
-// 以数字为key的查找函数
+// 以整数为key的查找函数
 const TValue *luaH_getnum (Table *t, int key) {
   /* (1 <= key && key <= t->sizearray) */
   // 只要比sizearray小,那么都在数组部分
@@ -552,6 +586,7 @@ const TValue *luaH_getnum (Table *t, int key) {
 
 
 
+//--
 /*
 ** search function for strings
 */
@@ -568,6 +603,8 @@ const TValue *luaH_getstr (Table *t, TString *key) {
 }
 
 
+
+//--
 /*
 ** main search function
 */
@@ -598,7 +635,7 @@ const TValue *luaH_get (Table *t, const TValue *key) {
 }
 
 
-
+//--
 // 除了数字之外的key的set操作
 TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
   const TValue *p = luaH_get(t, key);
@@ -617,7 +654,8 @@ TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
 
 
 
-// 以数字为key的set操作
+//--
+// 以整数为key的set操作
 TValue *luaH_setnum (lua_State *L, Table *t, int key) {
   const TValue *p = luaH_getnum(t, key);
   if (p != luaO_nilobject)
@@ -633,6 +671,7 @@ TValue *luaH_setnum (lua_State *L, Table *t, int key) {
 
 
 
+//--
 // 以字符串为key的set操作
 TValue *luaH_setstr (lua_State *L, Table *t, TString *key) {
   const TValue *p = luaH_getstr(t, key);

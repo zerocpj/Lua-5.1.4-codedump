@@ -78,7 +78,7 @@
 // 这个函数都是在mark阶段过后使用的,所以此时的otherwhite其实就是本次GC的白色
 #define isdead(g,v)	((v)->gch.marked & otherwhite(g) & WHITEBITS)
 
-// 将节点mark为白色,同时清除黑色/灰色等
+// 切换成另一种白色
 #define changewhite(x)	((x)->gch.marked ^= WHITEBITS)
 #define gray2black(x)	l_setbit((x)->gch.marked, BLACKBIT)
 

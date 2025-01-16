@@ -69,6 +69,8 @@ void luaX_init (lua_State *L) {
   for (i=0; i<NUM_RESERVED; i++) {                                  //#define NUM_RESERVED    (cast(int, TK_WHILE-FIRST_RESERVED+1))
     TString *ts = luaS_new(L, luaX_tokens[i]);
     luaS_fix(ts);  /* reserved words are never collected */
+    //strlen不包括中止符
+    //sizeof包含中止符
     lua_assert(strlen(luaX_tokens[i])+1 <= TOKEN_LEN);
     ts->tsv.reserved = cast_byte(i+1);  /* reserved word */
   }

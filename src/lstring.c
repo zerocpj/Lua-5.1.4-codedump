@@ -19,6 +19,7 @@
 
 
 
+//--
 // 对保存string的hash桶进行resize
 void luaS_resize (lua_State *L, int newsize) {
   GCObject **newhash;
@@ -52,6 +53,7 @@ void luaS_resize (lua_State *L, int newsize) {
 
 
 
+//--
 static TString *newlstr (lua_State *L, const char *str, size_t l,
                                        unsigned int h) {
   TString *ts;
@@ -82,9 +84,11 @@ static TString *newlstr (lua_State *L, const char *str, size_t l,
 
 
 
+//--
 TString *luaS_newlstr (lua_State *L, const char *str, size_t l) {
   GCObject *o;
   unsigned int h = cast(unsigned int, l);  /* seed */
+  ///如果是32的话，步长就是32/32+1=2
   size_t step = (l>>5)+1;  /* if string is too long, don't hash all its chars */
   size_t l1;
   for (l1=l; l1>=step; l1-=step)  /* compute hash */
